@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-DiskMapper — WizTree benzeri Linux disk analiz uygulaması
-PyQt6 ile geliştirilmiştir.
-"""
+
 
 import sys
 import os
