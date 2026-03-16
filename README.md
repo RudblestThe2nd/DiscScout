@@ -1,11 +1,10 @@
-# DiskMapper 🗂️
-
+# DiskMapper 
 **WizTree benzeri, açık kaynak Linux disk analiz uygulaması**  
 PyQt6 ile geliştirilmiştir.
 
 ---
 
-## 📸 Özellikler
+## Özellikler
 
 | Özellik | Detay |
 |---|---|
@@ -34,7 +33,7 @@ chmod +x install.sh && ./install.sh
 
 ---
 
-## 🎮 Kullanım
+##  Kullanım
 
 | Eylem | Nasıl |
 |---|---|
@@ -46,7 +45,7 @@ chmod +x install.sh && ./install.sh
 
 ---
 
-## 🗂️ Dosya Yapısı
+## Dosya Yapısı
 
 ```
 DiskMapper/
@@ -58,7 +57,7 @@ DiskMapper/
 
 ---
 
-## 🔧 Komut Satırı Kullanımı
+## Komut Satırı Kullanımı
 
 ```bash
 # Doğrudan /home dizinini tara
@@ -70,7 +69,7 @@ sudo python3 diskmapper.py /
 
 ---
 
-## 📦 Bağımlılıklar
+##  Bağımlılıklar
 
 - Python 3.8+
 - PyQt6 >= 6.4.0
