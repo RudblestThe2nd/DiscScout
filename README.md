@@ -18,7 +18,7 @@ PyQt6 ile geliştirilmiştir.
 
 ---
 
-## ⚡ Kurulum (Ubuntu/Debian)
+## Kurulum (Ubuntu/Debian)
 
 ```bash
 # PyQt6 kur
