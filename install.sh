@@ -16,7 +16,7 @@ if ! command -v python3 &>/dev/null; then
 fi
 
 # pip kurulumu
-echo "📦  PyQt6 yükleniyor..."
+echo "  PyQt6 yükleniyor..."
 pip3 install --break-system-packages PyQt6 2>/dev/null || pip3 install PyQt6
 
 echo ""
