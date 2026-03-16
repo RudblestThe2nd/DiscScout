@@ -1,79 +1,80 @@
-# DiskMapper 
-**WizTree benzeri, açık kaynak Linux disk analiz uygulaması**  
-PyQt6 ile geliştirilmiştir.
+# DiskMapper
+
+A WizTree-style disk space analyzer for Linux, built with PyQt6.
 
 ---
 
-## Özellikler
+## Features
 
-| Özellik | Detay |
-|---|---|
-| **Squarified Treemap** | Boyuta göre hiyerarşik görsel harita |
-| **Dosya Listesi** | WizTree gibi sıralanabilir tablo |
-| **Hızlı Tarama** | `os.scandir` ile multi-thread tarama |
-| **Tıklayarak Gezinme** | Treemap veya listede çift tık ile alt dizine git |
-| **Breadcrumb Navigasyon** | Üst dizinlere tek tıkla dön |
-| **Renk Kodlama** | % orana göre kırmızı/sarı/yeşil |
-| **Dark Tema** | GitHub Dark tarzı arayüz |
+- **Squarified Treemap** — hierarchical visualization scaled by file/folder size
+- **Sortable File List** — name, size, percentage, file count, and full path columns
+- **Fast Scanning** — multi-threaded scanning using `os.scandir`, non-blocking UI
+- **Click-to-Navigate** — drill into directories by clicking the treemap or double-clicking the list
+- **Breadcrumb Navigation** — navigate back up the directory tree with a single click
+- **Color-coded Sizes** — percentage column highlighted in red, yellow, or green
+- **Dark Theme** — clean dark interface with monospace typography
 
 ---
 
-## Kurulum (Ubuntu/Debian)
+## Requirements
+
+- Python 3.8 or higher
+- PyQt6 >= 6.4.0
+
+---
+
+## Installation
 
 ```bash
-# PyQt6 kur
 pip3 install PyQt6
-
-# Çalıştır
-python3 diskmapper.py
-
-# Veya otomatik kurulum betiği
-chmod +x install.sh && ./install.sh
 ```
 
 ---
 
-##  Kullanım
+## Usage
 
-| Eylem | Nasıl |
-|---|---|
-| Dizin seç | `Ctrl+O` veya "Dizin Seç & Tara" butonu |
-| Üst dizine git | `Backspace` veya "Yukarı" butonu |
-| Alt dizine gir | Treemap'e **tek tık** veya listede **çift tık** |
-| Taramayı durdur | "Durdur" butonu |
-| Üst dizinlere dön | Breadcrumb üzerindeki isimlerden tıkla |
+```bash
+# Launch and select a directory from the UI
+python3 diskmapper.py
+
+# Scan a specific directory on startup
+python3 diskmapper.py /home
+```
 
 ---
 
-## Dosya Yapısı
+## Keyboard Shortcuts
+
+| Action | Shortcut |
+|---|---|
+| Select directory | Ctrl+O |
+| Go up one level | Backspace |
+| Drill into directory | Single click on treemap / Double click on list |
+
+---
+
+## Project Structure
 
 ```
 DiskMapper/
-├── diskmapper.py      ← Ana uygulama (tek dosya)
-├── requirements.txt   ← Bağımlılıklar
-├── install.sh         ← Kurulum betiği
-└── diskmapper.desktop ← Linux uygulama launcher
+├── diskmapper.py      — main application (single file)
+├── requirements.txt   — dependencies
+├── install.sh         — setup script for Ubuntu/Debian
+└── diskmapper.desktop — Linux application launcher
 ```
 
 ---
 
-## Komut Satırı Kullanımı
+## Running as Root
+
+To analyze the full disk:
 
 ```bash
-# Doğrudan /home dizinini tara
-python3 diskmapper.py /home
-
-# Root olarak çalıştır (tüm disk)
 sudo python3 diskmapper.py /
 ```
 
 ---
 
-##  Bağımlılıklar
+## License
 
-- Python 3.8+
-- PyQt6 >= 6.4.0
-
----
-
-Geliştirme fikirleri: dosya silme, büyük dosya listesi, filtre arama...
+MIT
