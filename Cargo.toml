@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 jwalk  = "0.8"
+libc   = "0.2"
 rayon  = "1.10"
 eframe = "0.29"
 egui   = "0.29"

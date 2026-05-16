@@ -36,6 +36,22 @@ fn darken(c: Color32, f: f32) -> Color32 {
     )
 }
 
+fn disk_usage(path: &str) -> (u64, u64) {
+    use std::ffi::CString;
+    use std::mem::MaybeUninit;
+    let c_path = CString::new(path).unwrap_or_default();
+    unsafe {
+        let mut stat: libc::statvfs = MaybeUninit::zeroed().assume_init();
+        if libc::statvfs(c_path.as_ptr(), &mut stat) == 0 {
+            let total = stat.f_blocks * stat.f_frsize;
+            let free  = stat.f_bfree  * stat.f_frsize;
+            let used  = total.saturating_sub(free);
+            return (used, total);
+        }
+    }
+    (0, 0)
+}
+
 enum ScanState {
     Idle,
     Scanning,
@@ -47,10 +63,11 @@ pub struct DiskMapperApp {
     state:       Arc<Mutex<ScanState>>,
     current_id:  Option<NodeId>,
     tiles:       Vec<TileRect>,
-    hovered_id:  Option<NodeId>,
-    sort_col:    usize,
-    sort_desc:   bool,
-    list_height: f32,
+    hovered_id:   Option<NodeId>,
+    sort_col:     usize,
+    sort_desc:    bool,
+    list_height:  f32,
+    expanded_ids: std::collections::HashSet<NodeId>,
 }
 
 impl DiskMapperApp {
@@ -60,10 +77,65 @@ impl DiskMapperApp {
             state:       Arc::new(Mutex::new(ScanState::Idle)),
             current_id:  None,
             tiles:       Vec::new(),
-            hovered_id:  None,
-            sort_col:    2,
-            sort_desc:   true,
-            list_height: 280.0,
+            hovered_id:   None,
+            sort_col:     2,
+            sort_desc:    true,
+            list_height:  280.0,
+            expanded_ids: std::collections::HashSet::new(),
+        }
+    }
+
+    fn draw_tree_rows_flat(
+        ui: &mut egui::Ui,
+        state: &std::sync::Arc<std::sync::Mutex<ScanState>>,
+        children: &[(NodeId, String, u64, bool, Vec<NodeId>)],
+        parent_size: f64,
+        expanded: &std::collections::HashSet<NodeId>,
+        hovered_id: &mut Option<NodeId>,
+        to_expand: &mut Option<NodeId>,
+        to_collapse: &mut Option<NodeId>,
+        depth: usize,
+    ) {
+        for (node_id, name, size, is_dir, sub_children) in children {
+            let pct = *size as f64 / parent_size * 100.0;
+            let is_expanded = expanded.contains(node_id);
+            let indent = "  ".repeat(depth);
+            let arrow = if *is_dir && !sub_children.is_empty() {
+                if is_expanded { "v " } else { "> " }
+            } else { "  " };
+            let nc = if *is_dir { Color32::from_rgb(126, 200, 227) } else { Color32::from_rgb(200, 204, 212) };
+            let name_txt = format!("{}{}{}", indent, arrow, name);
+            let resp = ui.add(
+                egui::Label::new(egui::RichText::new(&name_txt).monospace().size(12.0).color(nc))
+                    .sense(egui::Sense::click())
+            );
+            if resp.hovered() { *hovered_id = Some(*node_id); }
+            if resp.clicked() && *is_dir && !sub_children.is_empty() {
+                if is_expanded { *to_collapse = Some(*node_id); }
+                else           { *to_expand   = Some(*node_id); }
+            }
+            ui.label(egui::RichText::new(Self::fmt_size(*size)).monospace().size(12.0).color(Color32::from_rgb(200, 200, 200)));
+            let pc = if pct > 40.0 { Color32::from_rgb(239, 83, 80) }
+                else if pct > 15.0 { Color32::from_rgb(255, 167, 38) }
+                else               { Color32::from_rgb(102, 187, 106) };
+            ui.label(egui::RichText::new(format!("{:.1}%", pct)).monospace().size(12.0).color(pc));
+            ui.label(egui::RichText::new(format!("{}", sub_children.len())).monospace().size(12.0).color(Color32::from_rgb(130, 130, 150)));
+            ui.end_row();
+            if is_expanded && *is_dir && !sub_children.is_empty() {
+                let sub_data: Vec<(NodeId, String, u64, bool, Vec<NodeId>)> = {
+                    let st = state.lock().unwrap();
+                    if let ScanState::Done { arena, .. } = &*st {
+                        let mut v: Vec<_> = sub_children.iter().map(|&id| {
+                            let n = arena.get(id);
+                            (id, n.name.clone(), n.size, n.is_dir, n.children.clone())
+                        }).collect();
+                        v.sort_by(|a, b| b.2.cmp(&a.2));
+                        v
+                    } else { vec![] }
+                };
+                Self::draw_tree_rows_flat(ui, state, &sub_data, *size as f64,
+                    expanded, hovered_id, to_expand, to_collapse, depth + 1);
+            }
         }
     }
 
@@ -173,6 +245,81 @@ impl DiskMapperApp {
     }
 }
 
+impl DiskMapperApp {
+    fn draw_tree_rows(
+        ui: &mut egui::Ui,
+        arena: &crate::tree::Arena,
+        children: &[(NodeId, &crate::tree::Node)],
+        parent_size: f64,
+        expanded: &std::collections::HashSet<NodeId>,
+        hovered_id: &mut Option<NodeId>,
+        to_expand: &mut Option<NodeId>,
+        to_collapse: &mut Option<NodeId>,
+        depth: usize,
+    ) {
+        for (node_id, node) in children {
+            let pct = node.size as f64 / parent_size * 100.0;
+            let is_expanded = expanded.contains(node_id);
+            let indent = "  ".repeat(depth);
+
+            // Arrow icon
+            let arrow = if node.is_dir && !node.children.is_empty() {
+                if is_expanded { "v " } else { "> " }
+            } else { "  " };
+
+            let nc = if node.is_dir {
+                Color32::from_rgb(126, 200, 227)
+            } else {
+                Color32::from_rgb(200, 204, 212)
+            };
+
+            let name_txt = format!("{}{}{}", indent, arrow, node.name);
+            let resp = ui.add(
+                egui::Label::new(
+                    egui::RichText::new(&name_txt).monospace().size(12.0).color(nc)
+                ).sense(egui::Sense::click())
+            );
+
+            if resp.hovered() { *hovered_id = Some(*node_id); }
+            if resp.clicked() {
+                if node.is_dir && !node.children.is_empty() {
+                    if is_expanded { *to_collapse = Some(*node_id); }
+                    else           { *to_expand   = Some(*node_id); }
+                }
+            }
+
+            // Size
+            ui.label(egui::RichText::new(Self::fmt_size(node.size))
+                .monospace().size(12.0).color(Color32::from_rgb(200, 200, 200)));
+
+            // %
+            let pc = if pct > 40.0 { Color32::from_rgb(239, 83, 80) }
+                else if pct > 15.0 { Color32::from_rgb(255, 167, 38) }
+                else               { Color32::from_rgb(102, 187, 106) };
+            ui.label(egui::RichText::new(format!("{:.1}%", pct))
+                .monospace().size(12.0).color(pc));
+
+            // Files
+            ui.label(egui::RichText::new(format!("{}", node.children.len()))
+                .monospace().size(12.0).color(Color32::from_rgb(130, 130, 150)));
+
+            ui.end_row();
+
+            // Alt öğeler — expand edilmişse göster
+            if is_expanded && node.is_dir && !node.children.is_empty() {
+                let mut sub: Vec<(NodeId, &crate::tree::Node)> = node.children.iter()
+                    .map(|&id| (id, arena.get(id)))
+                    .collect();
+                sub.sort_by(|a, b| b.1.size.cmp(&a.1.size));
+                Self::draw_tree_rows(
+                    ui, arena, &sub, node.size.max(1) as f64,
+                    expanded, hovered_id, to_expand, to_collapse, depth + 1,
+                );
+            }
+        }
+    }
+}
+
 impl eframe::App for DiskMapperApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut visuals = egui::Visuals::dark();
@@ -249,10 +396,26 @@ impl eframe::App for DiskMapperApp {
                                 .monospace().size(11.0)
                                 .color(Color32::from_rgb(100, 180, 255)));
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                let root_size = arena.get(*root_id).size;
+                                let cur_size  = arena.get(cur).size;
+                                // Gerçek disk kullanımını al
+                                let (disk_used, disk_total) = {
+                                    use std::fs;
+                                    let path = &arena.get(*root_id).path;
+                                    if let Ok(stat) = fs::metadata(path) {
+                                        // statvfs ile disk bilgisi
+                                        let s = disk_usage(path);
+                                        s
+                                    } else {
+                                        (root_size, root_size)
+                                    }
+                                };
+                                let pct = if disk_total > 0 { disk_used as f64 / disk_total as f64 * 100.0 } else { 0.0 };
                                 ui.label(egui::RichText::new(format!(
-                                    "Total: {}   Items: {}",
-                                    Self::fmt_size(arena.get(*root_id).size),
-                                    node.children.len(),
+                                    "Disk: {} / {} ({:.1}% used)",
+                                    Self::fmt_size(disk_used),
+                                    Self::fmt_size(disk_total),
+                                    pct,
                                 )).monospace().size(11.0).color(Color32::from_rgb(140, 200, 140)));
                             });
                         }
@@ -268,59 +431,70 @@ impl eframe::App for DiskMapperApp {
             .default_height(self.list_height)
             .frame(egui::Frame::default().fill(Color32::from_rgb(13, 13, 26)))
             .show(ctx, |ui| {
-                let st = self.state.lock().unwrap();
-                if let ScanState::Done { arena, .. } = &*st {
-                    if let Some(cur_id) = self.current_id {
-                        let cur = arena.get(cur_id);
-                        let parent_size = cur.size.max(1) as f64;
-                        let mut children: Vec<(NodeId, &crate::tree::Node)> =
-                            cur.children.iter().map(|&id| (id, arena.get(id))).collect();
-                        match self.sort_col {
-                            0 => children.sort_by(|a, b| {
-                                let o = a.1.name.cmp(&b.1.name);
-                                if self.sort_desc { o.reverse() } else { o }
-                            }),
-                            _ => children.sort_by(|a, b| {
-                                let o = a.1.size.cmp(&b.1.size);
-                                if self.sort_desc { o.reverse() } else { o }
-                            }),
-                        }
-                        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                            egui::Grid::new("file_list").striped(true).spacing([12.0, 1.0]).min_col_width(60.0).show(ui, |ui| {
-                                let cols = ["Name", "Size", "% of Parent", "Files"];
-                                for (i, label) in cols.iter().enumerate() {
-                                    let txt = if self.sort_col == i {
-                                        format!("{} {}", label, if self.sort_desc { "v" } else { "^" })
-                                    } else { label.to_string() };
-                                    if ui.add(egui::Label::new(
-                                        egui::RichText::new(txt).monospace().size(11.0).strong()
-                                            .color(Color32::from_rgb(126, 200, 227))
-                                    ).sense(egui::Sense::click())).clicked() {
-                                        if self.sort_col == i { self.sort_desc = !self.sort_desc; }
-                                        else { self.sort_col = i; self.sort_desc = true; }
-                                    }
+                // Önce veriyi lock içinde kopyala, sonra lock'u bırak
+                let list_data: Option<(Vec<(NodeId, String, u64, bool, Vec<NodeId>)>, f64)> = {
+                    let st = self.state.lock().unwrap();
+                    if let ScanState::Done { arena, .. } = &*st {
+                        if let Some(cur_id) = self.current_id {
+                            let cur = arena.get(cur_id);
+                            let parent_size = cur.size.max(1) as f64;
+                            let mut children: Vec<(NodeId, String, u64, bool, Vec<NodeId>)> =
+                                cur.children.iter().map(|&id| {
+                                    let n = arena.get(id);
+                                    (id, n.name.clone(), n.size, n.is_dir, n.children.clone())
+                                }).collect();
+                            match self.sort_col {
+                                0 => children.sort_by(|a, b| {
+                                    let o = a.1.cmp(&b.1);
+                                    if self.sort_desc { o.reverse() } else { o }
+                                }),
+                                _ => children.sort_by(|a, b| {
+                                    let o = a.2.cmp(&b.2);
+                                    if self.sort_desc { o.reverse() } else { o }
+                                }),
+                            }
+                            Some((children, parent_size))
+                        } else { None }
+                    } else { None }
+                };
+
+                let is_scanning = matches!(*self.state.lock().unwrap(), ScanState::Scanning);
+
+                if let Some((children, parent_size)) = list_data {
+                    let mut to_expand:   Option<NodeId> = None;
+                    let mut to_collapse: Option<NodeId> = None;
+
+                    egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                        egui::Grid::new("file_list").striped(true).spacing([4.0, 1.0]).min_col_width(60.0).show(ui, |ui| {
+                            // Header
+                            let cols = ["Name", "Size", "% of Parent", "Files"];
+                            for (i, label) in cols.iter().enumerate() {
+                                let txt = if self.sort_col == i {
+                                    format!("{} {}", label, if self.sort_desc { "v" } else { "^" })
+                                } else { label.to_string() };
+                                if ui.add(egui::Label::new(
+                                    egui::RichText::new(txt).monospace().size(11.0).strong()
+                                        .color(Color32::from_rgb(126, 200, 227))
+                                ).sense(egui::Sense::click())).clicked() {
+                                    if self.sort_col == i { self.sort_desc = !self.sort_desc; }
+                                    else { self.sort_col = i; self.sort_desc = true; }
                                 }
-                                ui.end_row();
-                                for (node_id, node) in &children {
-                                    let pct = node.size as f64 / parent_size * 100.0;
-                                    let nc = if node.is_dir { Color32::from_rgb(126, 200, 227) } else { Color32::from_rgb(200, 204, 212) };
-                                    let pfx = if node.is_dir { "[D] " } else { "    " };
-                                    let r = ui.add(egui::Label::new(
-                                        egui::RichText::new(format!("{}{}", pfx, node.name)).monospace().size(12.0).color(nc)
-                                    ).sense(egui::Sense::hover()));
-                                    if r.hovered() { self.hovered_id = Some(*node_id); }
-                                    ui.label(egui::RichText::new(Self::fmt_size(node.size)).monospace().size(12.0).color(Color32::from_rgb(200, 200, 200)));
-                                    let pc = if pct > 40.0 { Color32::from_rgb(239, 83, 80) }
-                                        else if pct > 15.0 { Color32::from_rgb(255, 167, 38) }
-                                        else { Color32::from_rgb(102, 187, 106) };
-                                    ui.label(egui::RichText::new(format!("{:.1}%", pct)).monospace().size(12.0).color(pc));
-                                    ui.label(egui::RichText::new(format!("{}", node.children.len())).monospace().size(12.0).color(Color32::from_rgb(130, 130, 150)));
-                                    ui.end_row();
-                                }
-                            });
+                            }
+                            ui.end_row();
+
+                            // Tree rows
+                            Self::draw_tree_rows_flat(
+                                ui, &self.state, &children, parent_size,
+                                &self.expanded_ids, &mut self.hovered_id,
+                                &mut to_expand, &mut to_collapse, 0,
+                            );
                         });
-                    }
-                } else if matches!(&*st, ScanState::Scanning) {
+                    });
+
+                    if let Some(id) = to_expand   { self.expanded_ids.insert(id); }
+                    if let Some(id) = to_collapse { self.expanded_ids.remove(&id); }
+
+                } else if is_scanning {
                     ui.centered_and_justified(|ui| {
                         ui.label(egui::RichText::new("Scanning...").monospace().size(14.0).color(Color32::YELLOW));
                     });

@@ -834,6 +834,7 @@ dependencies = [
  "eframe",
  "egui",
  "jwalk",
+ "libc",
  "rayon",
 ]
 
