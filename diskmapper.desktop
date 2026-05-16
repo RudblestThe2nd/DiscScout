@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=DiskMapper
-Comment=WizTree benzeri Linux disk analiz aracı
-Exec=python3 /opt/diskmapper/diskmapper.py
-Icon=drive-harddisk
-Terminal=false
-Type=Application
-Categories=Utility;System;
-Keywords=disk;space;analyzer;treemap;
