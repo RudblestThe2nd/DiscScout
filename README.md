@@ -20,14 +20,14 @@ Scanned 2 million files in 1.4 seconds on a standard laptop.
 
 **Ubuntu / Debian / Mint — one-liner:**
 ```bash
-curl -LO https://github.com/RudblestThe2nd/DiskMapper/releases/latest/download/diskscout_0.1.0_amd64.deb && sudo dpkg -i diskscout_0.1.0_amd64.deb
+curl -LO https://github.com/RudblestThe2nd/DiskScout/releases/latest/download/diskscout_0.1.0_amd64.deb && sudo dpkg -i diskscout_0.1.0_amd64.deb
 ```
 
-Or download the `.deb` from the [Releases](https://github.com/RudblestThe2nd/DiskMapper/releases) page.
+Or download the `.deb` from the [Releases](https://github.com/RudblestThe2nd/DiskScout/releases) page.
 
 **Other distros:**
 ```bash
-bash <(curl -s https://github.com/RudblestThe2nd/DiskMapper/releases/latest/download/install.sh)
+bash <(curl -s https://github.com/RudblestThe2nd/DiskScout/releases/latest/download/install.sh)
 ```
 
 ## Build from Source
