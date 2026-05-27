@@ -45,7 +45,7 @@ fn get_or_create(
         return id;
     }
 
-    // Parent'ı da recursive olarak oluştur
+    // Recursively ensure parent nodes exist
     let parent_path = std::path::Path::new(path)
         .parent()
         .map(|p| p.to_string_lossy().to_string())
@@ -93,7 +93,7 @@ pub fn build_tree(root_path: &str, files: Vec<FileInfo>) -> (Arena, NodeId) {
     path_to_id.insert(root_path.to_string(), root_id);
 
     for file in files {
-        // Root'un kendisini atla
+        // Skip the root node itself
         if file.path == root_path {
             continue;
         }
@@ -111,9 +111,9 @@ pub fn build_tree(root_path: &str, files: Vec<FileInfo>) -> (Arena, NodeId) {
             root_id,
         );
 
-        // Dosya zaten eklenmediyse ekle
+        // Node already exists (created as a directory placeholder earlier)
         if path_to_id.contains_key(&file.path) {
-            // Klasör olarak önceden oluşturulduysa size'ı güncelle
+            // Update size if this entry is a file
             if !file.is_dir {
                 if let Some(&id) = path_to_id.get(&file.path) {
                     arena.get_mut(id).size = file.size;

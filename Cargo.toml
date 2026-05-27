@@ -1,7 +1,11 @@
 [package]
-name = "diskmapper-rs"
+name = "diskscout"
 version = "0.1.0"
 edition = "2021"
+description = "A WizTree-style disk space analyzer for Linux"
+authors = ["Berkay Parcal"]
+repository = "https://github.com/RudblestThe2nd/diskscout"
+license = "MIT"
 
 [dependencies]
 jwalk  = "0.8"

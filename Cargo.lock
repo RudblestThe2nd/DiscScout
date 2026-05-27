@@ -828,7 +828,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "diskmapper-rs"
+name = "diskscout"
 version = "0.1.0"
 dependencies = [
  "eframe",

@@ -1,4 +1,4 @@
-# DiskMapper-rs
+# DiskScout
 
 A WizTree-style disk space analyzer for Linux, written in Rust.
 
@@ -16,25 +16,37 @@ A WizTree-style disk space analyzer for Linux, written in Rust.
 
 Scanned 2 million files in 1.4 seconds on a standard laptop.
 
-## Requirements
+## Install
 
-- Linux
-- Rust 1.70 or higher
+**Ubuntu / Debian / Mint — one-liner:**
+```bash
+curl -LO https://github.com/RudblestThe2nd/DiskMapper/releases/latest/download/diskscout_0.1.0_amd64.deb && sudo dpkg -i diskscout_0.1.0_amd64.deb
+```
 
-## Build
+Or download the `.deb` from the [Releases](https://github.com/RudblestThe2nd/DiskMapper/releases) page.
+
+**Other distros:**
+```bash
+bash <(curl -s https://github.com/RudblestThe2nd/DiskMapper/releases/latest/download/install.sh)
+```
+
+## Build from Source
+
+**Requirements:** Linux, Rust 1.70+
 
 ```bash
 cargo build --release
+./target/release/diskscout
 ```
 
 ## Usage
 
 ```bash
 # Launch UI
-./target/release/diskmapper-rs
+./target/release/diskscout
 
 # Scan a specific directory on startup
-./target/release/diskmapper-rs /home
+./target/release/diskscout /home
 ```
 
 ## Keyboard Shortcuts

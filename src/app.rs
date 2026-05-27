@@ -58,7 +58,7 @@ enum ScanState {
     Done { arena: Arena, root_id: NodeId },
 }
 
-pub struct DiskMapperApp {
+pub struct DiskScoutApp {
     scan_path:   String,
     state:       Arc<Mutex<ScanState>>,
     current_id:  Option<NodeId>,
@@ -70,7 +70,7 @@ pub struct DiskMapperApp {
     expanded_ids: std::collections::HashSet<NodeId>,
 }
 
-impl DiskMapperApp {
+impl DiskScoutApp {
     pub fn new() -> Self {
         Self {
             scan_path:   std::env::var("HOME").unwrap_or_else(|_| "/home".into()),
@@ -162,7 +162,7 @@ impl DiskMapperApp {
         else                { format!("{} B", bytes) }
     }
 
-    // Sadece renk + bevel + border çizer. Label YOK.
+    // Draws color + bevel + border only. No label.
     fn draw_block(painter: &egui::Painter, rect: Rect, color: Color32, hovered: bool, depth: usize) {
         if rect.width() < 2.0 || rect.height() < 2.0 { return; }
         let b   = 3.0_f32;
@@ -192,7 +192,7 @@ impl DiskMapperApp {
         }
     }
 
-    // depth==0 ve depth==1 bloklar için header şeridi + label çizer
+    // Draws header strip + label for depth==0 and depth==1 blocks
     fn draw_label(painter: &egui::Painter, rect: Rect, color: Color32, name: &str, size_str: &str) {
         let b = 3.0_f32;
         let inner = Rect::from_min_max(
@@ -209,11 +209,11 @@ impl DiskMapperApp {
         let header_h = fsz + 6.0;
 
         if inner.height() > header_h + 4.0 && inner.width() > 14.0 {
-            // Koyu header şeridi
+            // Dark header strip
             let hdr = Rect::from_min_size(inner.min, Vec2::new(inner.width(), header_h));
             painter.rect_filled(hdr, Rounding::ZERO, darken(color, 0.45));
 
-            // İsim — clip ile sınırla
+            // Name — clipped to header bounds
             let clipped = painter.with_clip_rect(hdr);
             clipped.text(
                 Pos2::new(inner.min.x + 3.0, inner.min.y + 2.0),
@@ -221,7 +221,7 @@ impl DiskMapperApp {
                 egui::FontId::monospace(fsz), Color32::WHITE,
             );
 
-            // Boyut sağda — isim ile çakışmıyorsa
+            // Size on the right — only if it doesn't overlap the name
             let size_fsz = (fsz - 1.0).max(7.0);
             let name_px = name.len() as f32 * fsz * 0.62 + 10.0;
             let size_px = size_str.len() as f32 * size_fsz * 0.62 + 6.0;
@@ -234,7 +234,7 @@ impl DiskMapperApp {
                 );
             }
         } else if inner.width() > 14.0 && inner.height() > 8.0 {
-            // Çok küçük — isim clip ile
+            // Too small for header — clip the name
             let clipped = painter.with_clip_rect(inner);
             clipped.text(
                 Pos2::new(inner.min.x + 2.0, inner.min.y + 1.0),
@@ -245,82 +245,7 @@ impl DiskMapperApp {
     }
 }
 
-impl DiskMapperApp {
-    fn draw_tree_rows(
-        ui: &mut egui::Ui,
-        arena: &crate::tree::Arena,
-        children: &[(NodeId, &crate::tree::Node)],
-        parent_size: f64,
-        expanded: &std::collections::HashSet<NodeId>,
-        hovered_id: &mut Option<NodeId>,
-        to_expand: &mut Option<NodeId>,
-        to_collapse: &mut Option<NodeId>,
-        depth: usize,
-    ) {
-        for (node_id, node) in children {
-            let pct = node.size as f64 / parent_size * 100.0;
-            let is_expanded = expanded.contains(node_id);
-            let indent = "  ".repeat(depth);
-
-            // Arrow icon
-            let arrow = if node.is_dir && !node.children.is_empty() {
-                if is_expanded { "v " } else { "> " }
-            } else { "  " };
-
-            let nc = if node.is_dir {
-                Color32::from_rgb(126, 200, 227)
-            } else {
-                Color32::from_rgb(200, 204, 212)
-            };
-
-            let name_txt = format!("{}{}{}", indent, arrow, node.name);
-            let resp = ui.add(
-                egui::Label::new(
-                    egui::RichText::new(&name_txt).monospace().size(12.0).color(nc)
-                ).sense(egui::Sense::click())
-            );
-
-            if resp.hovered() { *hovered_id = Some(*node_id); }
-            if resp.clicked() {
-                if node.is_dir && !node.children.is_empty() {
-                    if is_expanded { *to_collapse = Some(*node_id); }
-                    else           { *to_expand   = Some(*node_id); }
-                }
-            }
-
-            // Size
-            ui.label(egui::RichText::new(Self::fmt_size(node.size))
-                .monospace().size(12.0).color(Color32::from_rgb(200, 200, 200)));
-
-            // %
-            let pc = if pct > 40.0 { Color32::from_rgb(239, 83, 80) }
-                else if pct > 15.0 { Color32::from_rgb(255, 167, 38) }
-                else               { Color32::from_rgb(102, 187, 106) };
-            ui.label(egui::RichText::new(format!("{:.1}%", pct))
-                .monospace().size(12.0).color(pc));
-
-            // Files
-            ui.label(egui::RichText::new(format!("{}", node.children.len()))
-                .monospace().size(12.0).color(Color32::from_rgb(130, 130, 150)));
-
-            ui.end_row();
-
-            // Alt öğeler — expand edilmişse göster
-            if is_expanded && node.is_dir && !node.children.is_empty() {
-                let mut sub: Vec<(NodeId, &crate::tree::Node)> = node.children.iter()
-                    .map(|&id| (id, arena.get(id)))
-                    .collect();
-                sub.sort_by(|a, b| b.1.size.cmp(&a.1.size));
-                Self::draw_tree_rows(
-                    ui, arena, &sub, node.size.max(1) as f64,
-                    expanded, hovered_id, to_expand, to_collapse, depth + 1,
-                );
-            }
-        }
-    }
-}
-
-impl eframe::App for DiskMapperApp {
+impl eframe::App for DiskScoutApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill       = Color32::from_rgb(13, 13, 26);
@@ -397,15 +322,10 @@ impl eframe::App for DiskMapperApp {
                                 .color(Color32::from_rgb(100, 180, 255)));
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                 let root_size = arena.get(*root_id).size;
-                                let cur_size  = arena.get(cur).size;
-                                // Gerçek disk kullanımını al
                                 let (disk_used, disk_total) = {
-                                    use std::fs;
                                     let path = &arena.get(*root_id).path;
-                                    if let Ok(stat) = fs::metadata(path) {
-                                        // statvfs ile disk bilgisi
-                                        let s = disk_usage(path);
-                                        s
+                                    if std::fs::metadata(path).is_ok() {
+                                        disk_usage(path)
                                     } else {
                                         (root_size, root_size)
                                     }
@@ -431,7 +351,7 @@ impl eframe::App for DiskMapperApp {
             .default_height(self.list_height)
             .frame(egui::Frame::default().fill(Color32::from_rgb(13, 13, 26)))
             .show(ctx, |ui| {
-                // Önce veriyi lock içinde kopyala, sonra lock'u bırak
+                // Copy data inside lock, then release before rendering
                 let list_data: Option<(Vec<(NodeId, String, u64, bool, Vec<NodeId>)>, f64)> = {
                     let st = self.state.lock().unwrap();
                     if let ScanState::Done { arena, .. } = &*st {
@@ -517,7 +437,7 @@ impl eframe::App for DiskMapperApp {
                 if self.tiles.is_empty() {
                     let target: Option<NodeId> = {
                         let st = self.state.lock().unwrap();
-                        if let ScanState::Done { arena, root_id } = &*st {
+                        if let ScanState::Done { arena: _, root_id } = &*st {
                             Some(self.current_id.unwrap_or(*root_id))
                         } else { None }
                     };
@@ -543,7 +463,7 @@ impl eframe::App for DiskMapperApp {
                 let mut new_hov: Option<NodeId> = None;
                 let mut nav_to: Option<NodeId>  = None;
 
-                // Pass 1: sadece renk + bevel
+                // Pass 1: color + bevel only
                 for tile in self.tiles.iter() {
                     let r = Rect::from_min_max(
                         Pos2::new(tile.rect.x, tile.rect.y),
@@ -558,7 +478,7 @@ impl eframe::App for DiskMapperApp {
                     Self::draw_block(&painter, r, palette(tile.color_idx), hov, tile.depth);
                 }
 
-                // Pass 2: depth==0 ve yeterince büyük depth==1 bloklara label
+                // Pass 2: labels for depth==0 and large enough depth==1 blocks
                 for tile in self.tiles.iter().filter(|t| {
                     t.depth == 0 || (t.depth == 1 && t.rect.w > 60.0 && t.rect.h > 20.0)
                 }) {

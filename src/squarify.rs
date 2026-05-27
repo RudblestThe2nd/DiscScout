@@ -136,15 +136,14 @@ fn squarify_inner(
         layout_row(&row, &mut current, &mut results, depth, color_base + placed);
     }
 
-    // Recursive: her klasörün içine alt treemap çiz
-    // Sadece belirli derinlik ve minimum boyut sınırı ile
+    // Recurse: draw sub-treemap inside each directory up to depth 2
     if depth < 2 {
         let children_tiles: Vec<TileRect> = results.clone();
         for tile in &children_tiles {
             let child = arena.get(tile.node_id);
             if !child.is_dir || child.children.is_empty() { continue; }
 
-            // Header yüksekliğini blok genişliğine göre hesapla (app.rs ile senkron)
+            // Compute header height based on block width (must stay in sync with app.rs)
             let fsz: f32 = if tile.rect.w > 300.0 { 13.0 }
                            else if tile.rect.w > 150.0 { 11.0 }
                            else if tile.rect.w > 80.0  {  9.0 }

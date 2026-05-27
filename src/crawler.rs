@@ -7,7 +7,7 @@ pub struct FileInfo {
     pub name: String,
     pub size: u64,
     pub is_dir: bool,
-    pub mtime: u64,
+    pub _mtime: u64,
 }
 
 pub fn scan(root: &str) -> Vec<FileInfo> {
@@ -26,7 +26,7 @@ pub fn scan(root: &str) -> Vec<FileInfo> {
                 name: entry.file_name().to_string_lossy().to_string(),
                 size: if meta.is_file() { meta.len() } else { 0 },
                 is_dir: meta.is_dir(),
-                mtime: meta
+                _mtime: meta
                     .modified()
                     .ok()?
                     .duration_since(std::time::UNIX_EPOCH)
