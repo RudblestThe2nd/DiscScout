@@ -1,12 +1,14 @@
 # DiskScout
 
-A WizTree-style disk space analyzer for Linux, written in Rust.
+A disk space analyzer for Linux, written in Rust.
+
+![DiskScout Screenshot](assets/screenshot.png)
 
 ## Features
 
 - Parallel filesystem scanning using jwalk and rayon (up to 12x faster than single-threaded)
 - Squarified treemap with recursive visualization
-- WizTree-style header strips with folder names and sizes
+- Header strips with folder names and sizes
 - Resizable file list panel with sortable columns
 - Hover tooltips showing folder contents
 - Click to navigate into directories, Up button to go back
@@ -20,14 +22,14 @@ Scanned 2 million files in 1.4 seconds on a standard laptop.
 
 **Ubuntu / Debian / Mint — one-liner:**
 ```bash
-curl -LO https://github.com/RudblestThe2nd/DiskScout/releases/latest/download/diskscout_0.1.0_amd64.deb && sudo dpkg -i diskscout_0.1.0_amd64.deb
+curl -LO https://github.com/RudblestThe2nd/DiscScout/releases/latest/download/diskscout_0.1.0_amd64.deb && sudo dpkg -i diskscout_0.1.0_amd64.deb
 ```
 
-Or download the `.deb` from the [Releases](https://github.com/RudblestThe2nd/DiskScout/releases) page.
+Or download the `.deb` from the [Releases](https://github.com/RudblestThe2nd/DiscScout/releases) page.
 
 **Other distros:**
 ```bash
-bash <(curl -s https://github.com/RudblestThe2nd/DiskScout/releases/latest/download/install.sh)
+bash <(curl -s https://github.com/RudblestThe2nd/DiscScout/releases/latest/download/install.sh)
 ```
 
 ## Build from Source
